@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interactive Decision Model</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1d2939;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --panel: #fff;
+      --canvas: #f5f7fb;
+      --accent: #3157d5;
+      --accent-light: #eef2ff;
+      --green: #157347;
+      --green-light: #eaf7ef;
+      --red: #b42318;
+      --red-light: #fff0ef;
+      --amber: #8a5b00;
+      --amber-light: #fff7e6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 32px 20px 56px; }
+
+    h1 { margin: 0 0 6px; font-size: clamp(1.7rem, 3vw, 2.3rem); }
+    h2 { margin: 0; font-size: 1.2rem; }
+    h3 { margin: 0 0 10px; font-size: 1rem; }
+    p { margin: 0; }
+
+    .intro { color: var(--muted); margin-bottom: 24px; }
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      box-shadow: 0 1px 2px rgb(16 24 40 / 4%);
+    }
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    button, input, select { font: inherit; }
+    button {
+      border: 1px solid #cfd4dc;
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      cursor: pointer;
+      padding: 7px 11px;
+    }
+    button:hover { background: #f8f9fc; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+    button.primary:hover { background: #2446bd; }
+    button.danger { color: var(--red); }
+    button.small { padding: 4px 8px; font-size: .88rem; }
+
+    input, select {
+      width: 100%;
+      border: 1px solid #cfd4dc;
+      border-radius: 7px;
+      padding: 8px 9px;
+      color: var(--ink);
+      background: white;
+    }
+    input:focus, select:focus, button:focus-visible {
+      outline: 3px solid rgb(49 87 213 / 18%);
+      border-color: var(--accent);
+    }
+    input[type="number"] { min-width: 78px; }
+    .name-input { min-width: 145px; }
+    .prob-input { max-width: 110px; }
+    .muted, .hint { color: var(--muted); }
+    .hint { font-size: .88rem; margin-top: 8px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td {
+      text-align: left;
+      padding: 9px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+    thead th { background: #f9fafb; font-weight: 650; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .prob-row { display: flex; align-items: center; gap: 10px; }
+    .prob-row strong { min-width: 110px; font-weight: 500; }
+    .prob-row + .prob-row { margin-top: 8px; }
+    .prob-total { margin-top: 12px; font-size: .92rem; }
+    .status { padding: 8px 10px; border-radius: 8px; }
+    .status.good { color: var(--green); background: var(--green-light); }
+    .status.warn { color: var(--amber); background: var(--amber-light); }
+    .empty { color: var(--muted); padding: 14px 0; }
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    .result-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+      background: #fff;
+    }
+    .result-card h3 { margin-bottom: 4px; }
+    .result-value { font-size: 1.1rem; font-weight: 700; }
+    .recommendation { color: var(--green); font-weight: 650; margin-top: 7px; }
+    .result-detail { color: var(--muted); font-size: .87rem; margin-top: 5px; }
+    .stage-editor { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .stage-editor select { width: auto; min-width: 210px; }
+    .stage-list { display: grid; gap: 8px; margin-top: 14px; padding: 0; list-style: none; }
+    .stage-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .stage-number {
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+    .stage-name { flex: 1; font-weight: 600; }
+    .flow { display: grid; gap: 10px; margin-top: 16px; }
+    .flow-step {
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--accent);
+      border-radius: 9px;
+      padding: 12px 14px;
+      background: white;
+    }
+    .flow-step.final { border-left-color: var(--green); background: #fbfefc; }
+    .flow-step.empty-step { border-left-color: var(--red); background: #fffafa; }
+    .flow-title { font-weight: 700; }
+    .flow-meta { color: var(--muted); font-size: .88rem; margin-top: 2px; }
+    .flow-arrow { text-align: center; color: var(--muted); line-height: 1; font-size: 1.3rem; }
+    .pill {
+      display: inline-block;
+      margin: 7px 5px 0 0;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: .87rem;
+      background: #eef2f6;
+    }
+    .pill.kept { background: var(--green-light); color: var(--green); }
+    .pill.removed { background: var(--red-light); color: var(--red); }
+    .footnote { color: var(--muted); font-size: .87rem; margin-top: 12px; }
+
+    @media (max-width: 600px) {
+      main { padding: 22px 12px 40px; }
+      .section { padding: 15px; }
+      .section-heading { align-items: flex-start; }
+      .prob-row strong { min-width: 85px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Interactive Decision Model</h1>
+    <p class="intro">Compare alternatives under uncertainty, calculate decision criteria, and see how staged filtering narrows the choices.</p>
+
+    <section class="section" aria-labelledby="alternatives-heading">
+      <div class="section-heading">
+        <h2 id="alternatives-heading">Payoff table</h2>
+        <div class="controls">
+          <button type="button" id="add-alternative">+ Add alternative</button>
+          <button type="button" id="add-state">+ Add state</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="payoff-table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="hint">Enter payoffs as numbers. Higher values are treated as better outcomes.</p>
+    </section>
+
+    <section class="section" aria-labelledby="probabilities-heading">
+      <div class="section-heading">
+        <h2 id="probabilities-heading">State probabilities</h2>
+      </div>
+      <div id="probabilities"></div>
+      <div id="probability-status" class="prob-total" aria-live="polite"></div>
+    </section>
+
+    <section class="section" aria-labelledby="results-heading">
+      <div class="section-heading">
+        <h2 id="results-heading">Decision criteria</h2>
+      </div>
+      <div id="results" class="results-grid" aria-live="polite"></div>
+      <p class="footnote">Regret for a state is the difference between that state’s best payoff and the alternative’s payoff. Tied recommendations are all shown.</p>
+    </section>
+
+    <section class="section" aria-labelledby="filter-heading">
+      <div class="section-heading">
+        <h2 id="filter-heading">Staged filtering</h2>
+      </div>
+      <p class="muted">Add criteria to define the filtering sequence. Each stage keeps all remaining alternatives tied for best on that criterion.</p>
+      <div class="stage-editor" style="margin-top:12px">
+        <label for="stage-select">Add criterion:</label>
+        <select id="stage-select">
+          <option value="maximax">Maximax</option>
+          <option value="maximin">Maximin</option>
+          <option value="regret">Minimax Regret</option>
+          <option value="emv">EMV / Bayes</option>
+        </select>
+        <button type="button" id="add-stage">Add stage</button>
+      </div>
+      <ol id="stage-list" class="stage-list"></ol>
+      <div id="flow" class="flow" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const CRITERIA = {
+        maximax: { label: "Maximax", direction: "max" },
+        maximin: { label: "Maximin", direction: "max" },
+        regret: { label: "Minimax Regret", direction: "min" },
+        emv: { label: "EMV / Bayes", direction: "max" }
+      };
+
+      let nextId = 3;
+      const model = {
+        states: [
+          { id: 1, name: "High demand", probability: 0.5 },
+          { id: 2, name: "Low demand", probability: 0.5 }
+        ],
+        alternatives: [
+          { id: 1, name: "Expand", payoffs: { 1: 100, 2: -40 } },
+          { id: 2, name: "Maintain", payoffs: { 1: 55, 2: 20 } }
+        ],
+        stages: ["maximin", "regret", "emv"]
+      };
+
+      const $ = (selector) => document.querySelector(selector);
+      const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[char]);
+      const number = (value) => Number.isFinite(value) ? value : 0;
+      const fmt = (value) => Number(value).toLocaleString(undefined, {
+        maximumFractionDigits: 4
+      });
+      const tied = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+
+      function probabilityData() {
+        const entered = model.states.map((state) => Math.max(0, number(state.probability)));
+        const total = entered.reduce((sum, value) => sum + value, 0);
+        const normalized = total > 0 ? entered.map((value) => value / total) : entered.map(() => 0);
+        return { entered, total, normalized };
+      }
+
+      function metrics() {
+        const { normalized } = probabilityData();
+        const stateBest = model.states.map((state) =>
+          Math.max(...model.alternatives.map((alt) => number(alt.payoffs[state.id])))
+        );
+
+        return model.alternatives.map((alt) => {
+          const values = model.states.map((state) => number(alt.payoffs[state.id]));
+          const regrets = values.map((value, index) => stateBest[index] - value);
+          return {
+            id: alt.id,
+            name: alt.name.trim() || `Alternative ${alt.id}`,
+            maximax: Math.max(...values),
+            maximin: Math.min(...values),
+            regret: Math.max(...regrets),
+            emv: values.reduce((sum, value, index) => sum + value * normalized[index], 0)
+          };
+        });
+      }
+
+      function bestAmong(rows, criterion) {
+        if (!rows.length) return { score: null, winners: [] };
+        const direction = CRITERIA[criterion].direction;
+        const scores = rows.map((row) => row[criterion]);
+        const score = direction === "max" ? Math.max(...scores) : Math.min(...scores);
+        return { score, winners: rows.filter((row) => tied(row[criterion], score)) };
+      }
+
+      function renderMatrix() {
+        const table = $("#payoff-table");
+        const thead = table.querySelector("thead");
+        const tbody = table.querySelector("tbody");
+
+        thead.innerHTML = `
+          <tr>
+            <th scope="col">Alternative</th>
+            ${model.states.map((state) => `
+              <th scope="col">
+                <div class="controls" style="align-items:center">
+                  <input class="name-input" aria-label="State name" data-kind="state-name" data-id="${state.id}" value="${escapeHtml(state.name)}">
+                  <button type="button" class="small danger" data-action="remove-state" data-id="${state.id}" aria-label="Remove ${escapeHtml(state.name)}">×</button>
+                </div>
+              </th>`).join("")}
+            <th scope="col">Actions</th>
+          </tr>`;
+        tbody.innerHTML = model.alternatives.map((alt) => `
+          <tr>
+            <td><input class="name-input" aria-label="Alternative name" data-kind="alternative-name" data-id="${alt.id}" value="${escapeHtml(alt.name)}"></td>
+            ${model.states.map((state) => `
+              <td><input type="number" step="any" aria-label="Payoff for ${escapeHtml(alt.name)} under ${escapeHtml(state.name)}" data-kind="payoff" data-alt-id="${alt.id}" data-state-id="${state.id}" value="${escapeHtml(alt.payoffs[state.id] ?? 0)}"></td>
+            `).join("")}
+            <td><button type="button" class="small danger" data-action="remove-alternative" data-id="${alt.id}">Remove</button></td>
+          </tr>`).join("");
+
+        renderProbabilities();
+        renderResults();
+        renderFlow();
+      }
+
+      function renderProbabilities() {
+        const container = $("#probabilities");
+        const status = $("#probability-status");
+        const { total } = probabilityData();
+
+        container.innerHTML = model.states.map((state) => `
+          <div class="prob-row">
+            <strong>${escapeHtml(state.name)}</strong>
+            <input class="prob-input" type="number" min="0" max="1" step="0.01"
+              aria-label="Probability of ${escapeHtml(state.name)}"
+              data-kind="probability" data-id="${state.id}" value="${escapeHtml(state.probability)}">
+          </div>`).join("") || `<p class="empty">Add a state to enter probabilities.</p>`;
+
+        if (!model.states.length) {
+          status.innerHTML = `<span class="status warn">EMV is unavailable until at least one state is added.</span>`;
+        } else if (total <= 0) {
+          status.innerHTML = `<span class="status warn">The probability total is 0. EMV uses equal weights until the total is greater than 0.</span>`;
+        } else if (!tied(total, 1)) {
+          status.innerHTML = `<span class="status warn">Entered total: ${fmt(total)}. EMV normalizes the entered values to sum to 1.</span>`;
+        } else {
+          status.innerHTML = `<span class="status good">Probability total: ${fmt(total)}.</span>`;
+        }
+      }
+
+      function renderResults() {
+        const container = $("#results");
+        const rows = metrics();
+        if (!rows.length || !model.states.length) {
+          container.innerHTML = `<p class="empty">Add at least one alternative and one state to calculate decision criteria.</p>`;
+          return;
+        }
+
+        container.innerHTML = Object.keys(CRITERIA).map((criterion) => {
+          const result = bestAmong(rows, criterion);
+          const names = result.winners.map((winner) => escapeHtml(winner.name)).join(", ");
+          return `<article class="result-card">
+            <h3>${CRITERIA[criterion].label}</h3>
+            <div class="result-value">${fmt(result.score)}</div>
+            <div class="recommendation">Recommended: ${names}</div>
+            <div class="result-detail">Best ${criterion === "regret" ? "maximum regret" : "criterion value"} among alternatives.</div>
+          </article>`;
+        }).join("");
+      }
+
+      function renderStageList() {
+        const list = $("#stage-list");
+        list.innerHTML = model.stages.map((criterion, index) => `
+          <li class="stage-item">
+            <span class="stage-number">${index + 1}</span>
+            <span class="stage-name">${CRITERIA[criterion].label}</span>
+            <button type="button" class="small" data-action="move-stage-up" data-index="${index}" aria-label="Move stage up" ${index === 0 ? "disabled" : ""}>↑</button>
+            <button type="button" class="small" data-action="move-stage-down" data-index="${index}" aria-label="Move stage down" ${index === model.stages.length - 1 ? "disabled" : ""}>↓</button>
+            <button type="button" class="small danger" data-action="remove-stage" data-index="${index}">Remove</button>
+          </li>`).join("") || `<li class="empty">No filtering stages. Add a criterion to start.</li>`;
+
+        const select = $("#stage-select");
+        [...select.options].forEach((option) => {
+          option.disabled = model.stages.includes(option.value);
+        });
+        if (select.selectedOptions[0]?.disabled) {
+          const available = [...select.options].find((option) => !option.disabled);
+          if (available) select.value = available.value;
+        }
+      }
+
+      function renderFlow() {
+        const flow = $("#flow");
+        const rows = metrics();
+        if (!rows.length || !model.states.length) {
+          flow.innerHTML = `<div class="flow-step empty-step"><div class="flow-title">No outcome yet</div><div class="flow-meta">Add at least one alternative and one state.</div></div>`;
+          return;
+        }
+
+        let survivors = rows.slice();
+        const steps = [];
+        model.stages.forEach((criterion, index) => {
+          if (!survivors.length) return;
+          const result = bestAmong(survivors, criterion);
+          const keptIds = new Set(result.winners.map((winner) => winner.id));
+          const removed = survivors.filter((row) => !keptIds.has(row.id));
+          steps.push({
+            title: `Stage ${index + 1}: ${CRITERIA[criterion].label}`,
+            score: result.score,
+            kept: result.winners,
+            removed
+          });
+          survivors = result.winners;
+        });
+
+        if (!model.stages.length) {
+          flow.innerHTML = `<div class="flow-step"><div class="flow-title">Filtering not configured</div><div class="flow-meta">Add at least one criterion stage. All alternatives remain eligible.</div>
+            <div>${rows.map((row) => `<span class="pill kept">${escapeHtml(row.name)}</span>`).join("")}</div></div>`;
+          return;
+        }
+
+        const pieces = [];
+        steps.forEach((step) => {
+          pieces.push(`<div class="flow-step">
+            <div class="flow-title">${step.title}</div>
+            <div class="flow-meta">Best score: ${fmt(step.score)} · Kept ${step.kept.length} of ${step.kept.length + step.removed.length}</div>
+            <div>${step.kept.map((row) => `<span class="pill kept">${escapeHtml(row.name)}</span>`).join("")}
+            ${step.removed.map((row) => `<span class="pill removed">${escapeHtml(row.name)} — eliminated</span>`).join("")}</div>
+          </div>`);
+          pieces.push(`<div class="flow-arrow" aria-hidden="true">↓</div>`);
+        });
+
+        if (survivors.length) {
+          pieces.push(`<div class="flow-step final">
+            <div class="flow-title">Final outcome</div>
+            <div class="flow-meta">${survivors.length === 1 ? "Recommended alternative" : "Tied recommended alternatives"} after all stages.</div>
+            <div>${survivors.map((row) => `<span class="pill kept">${escapeHtml(row.name)}</span>`).join("")}</div>
+          </div>`);
+        } else {
+          pieces.push(`<div class="flow-step empty-step"><div class="flow-title">No alternatives remain</div></div>`);
+        }
+        flow.innerHTML = pieces.join("");
+      }
+
+      function recalculate() {
+        renderProbabilities();
+        renderResults();
+        renderStageList();
+        renderFlow();
+      }
+
+      $("#add-alternative").addEventListener("click", () => {
+        const id = nextId++;
+        const payoffs = Object.fromEntries(model.states.map((state) => [state.id, 0]));
+        model.alternatives.push({ id, name: `Alternative ${model.alternatives.length + 1}`, payoffs });
+        renderMatrix();
+      });
+
+      $("#add-state").addEventListener("click", () => {
+        const id = nextId++;
+        model.states.push({ id, name: `State ${model.states.length + 1}`, probability: 1 / (model.states.length + 1) });
+        const equal = 1 / model.states.length;
+        model.states.forEach((state) => { state.probability = equal; });
+        model.alternatives.forEach((alt) => { alt.payoffs[id] = 0; });
+        renderMatrix();
+      });
+
+      $("#add-stage").addEventListener("click", () => {
+        const criterion = $("#stage-select").value;
+        if (!model.stages.includes(criterion)) model.stages.push(criterion);
+        recalculate();
+      });
+
+      document.addEventListener("input", (event) => {
+        const input = event.target;
+        const kind = input.dataset.kind;
+        if (!kind) return;
+
+        if (kind === "state-name") {
+          const state = model.states.find((item) => item.id === Number(input.dataset.id));
+          if (state) state.name = input.value;
+          const heading = input.closest("th");
+          const remove = heading?.querySelector('[data-action="remove-state"]');
+          if (remove) remove.setAttribute("aria-label", `Remove ${input.value}`);
+          renderProbabilities();
+        } else if (kind === "alternative-name") {
+          const alt = model.alternatives.find((item) => item.id === Number(input.dataset.id));
+          if (alt) alt.name = input.value;
+        } else if (kind === "payoff") {
+          const alt = model.alternatives.find((item) => item.id === Number(input.dataset.altId));
+          if (alt) alt.payoffs[input.dataset.stateId] = input.value === "" ? 0 : Number(input.value);
+        } else if (kind === "probability") {
+          const state = model.states.find((item) => item.id === Number(input.dataset.id));
+          if (state) state.probability = input.value === "" ? 0 : Number(input.value);
+        }
+        recalculate();
+      });
+
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+        const action = button.dataset.action;
+        const id = Number(button.dataset.id);
+        const index = Number(button.dataset.index);
+
+        if (action === "remove-alternative") {
+          model.alternatives = model.alternatives.filter((alt) => alt.id !== id);
+          renderMatrix();
+        } else if (action === "remove-state") {
+          model.states = model.states.filter((state) => state.id !== id);
+          model.alternatives.forEach((alt) => { delete alt.payoffs[id]; });
+          renderMatrix();
+        } else if (action === "remove-stage") {
+          model.stages.splice(index, 1);
+          recalculate();
+        } else if (action === "move-stage-up" && index > 0) {
+          [model.stages[index - 1], model.stages[index]] = [model.stages[index], model.stages[index - 1]];
+          recalculate();
+        } else if (action === "move-stage-down" && index < model.stages.length - 1) {
+          [model.stages[index + 1], model.stages[index]] = [model.stages[index], model.stages[index + 1]];
+          recalculate();
+        }
+      });
+
+      renderMatrix();
+      renderStageList();
+    })();
+  </script>
+</body>
+</html>
